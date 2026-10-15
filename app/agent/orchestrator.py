@@ -27,7 +27,8 @@ class Orchestrator:
 
         Returns the final answer string.
         Raises ValueError on argument validation failures.
-        Raises RuntimeError when the synthesis step requests tools again.
+        Raises RuntimeError when a direct answer or synthesis response is empty,
+        or when the synthesis step requests tools again.
         Raises the underlying exception on LLM or MCP failures.
         """
         messages: list[dict] = [
@@ -39,6 +40,8 @@ class Orchestrator:
         logger.debug("Initial LLM response: %s", response)
 
         if response["type"] == "text":
+            if not response.get("content", "").strip():
+                raise RuntimeError("LLM direct answer returned empty text")
             return response["content"]
         if response["type"] != "tool_use":
             raise RuntimeError(f"Unexpected LLM response type: {response['type']}")
@@ -79,4 +82,6 @@ class Orchestrator:
         logger.debug("Synthesis LLM response: %s", synthesis_response)
         if synthesis_response["type"] != "text":
             raise RuntimeError("LLM requested tools again on synthesis step (synthesis loop detected)")
+        if not synthesis_response.get("content", "").strip():
+            raise RuntimeError("LLM synthesis returned empty text")
         return synthesis_response["content"]

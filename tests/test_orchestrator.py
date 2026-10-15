@@ -28,7 +28,7 @@ TOOL_CALL = {
 }
 
 
-def test_direct_answer_path():
+def test_direct_answer_path_and_empty_validation():
     llm, mcp, orchestrator = _clients()
     llm.infer.return_value = {"type": "text", "content": "Hello!"}
 
@@ -36,8 +36,20 @@ def test_direct_answer_path():
     mcp.call_tool.assert_not_called()
     assert llm.infer.call_count == 1
 
+    llm, mcp, orchestrator = _clients()
+    llm.infer.return_value = {"type": "text", "content": ""}
+    with pytest.raises(RuntimeError, match="LLM direct answer returned empty text"):
+        orchestrator.handle_query("hello")
+    mcp.call_tool.assert_not_called()
 
-def test_tool_call_success():
+    llm, mcp, orchestrator = _clients()
+    llm.infer.return_value = {"type": "text", "content": "   "}
+    with pytest.raises(RuntimeError, match="LLM direct answer returned empty text"):
+        orchestrator.handle_query("hello")
+    mcp.call_tool.assert_not_called()
+
+
+def test_tool_call_success_and_synthesis_empty_validation():
     llm, mcp, orchestrator = _clients()
     llm.infer.side_effect = [
         TOOL_CALL,
@@ -50,6 +62,24 @@ def test_tool_call_success():
     assert mcp.call_tool.call_count == 1
     mcp.call_tool.assert_called_once_with("get_employee_by_id", {"id": "EMP-001"}, timeout=10)
     assert llm.infer.call_args_list[1].kwargs["tools"] is None
+
+    llm, mcp, orchestrator = _clients()
+    llm.infer.side_effect = [
+        TOOL_CALL,
+        {"type": "text", "content": ""},
+    ]
+    mcp.call_tool.return_value = {"name": "Alice", "id": "EMP-001"}
+    with pytest.raises(RuntimeError, match="LLM synthesis returned empty text"):
+        orchestrator.handle_query("what is the name of employee with emp-001")
+
+    llm, mcp, orchestrator = _clients()
+    llm.infer.side_effect = [
+        TOOL_CALL,
+        {"type": "text", "content": "   "},
+    ]
+    mcp.call_tool.return_value = {"name": "Alice", "id": "EMP-001"}
+    with pytest.raises(RuntimeError, match="LLM synthesis returned empty text"):
+        orchestrator.handle_query("what is the name of employee with emp-001")
 
 
 def test_tool_call_mcp_error():

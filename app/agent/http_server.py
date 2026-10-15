@@ -31,6 +31,8 @@ def create_app(orchestrator: Orchestrator) -> Flask:
             or not isinstance(payload.get("query"), str)
         ):
             return jsonify({"error": "missing 'query' field"}), 400
+        if not payload["query"].strip():
+            return jsonify({"error": "query cannot be empty"}), 400
         try:
             answer = orchestrator.handle_query(payload["query"])
         except ValueError as exc:
@@ -59,12 +61,14 @@ def run_server(host: str = "0.0.0.0", port: int = 5000) -> None:
         port = int(os.environ["FLASK_PORT"])
 
     api_key = _required_env("ANTHROPIC_API_KEY")
-    base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com").strip()
-    if not base_url:
-        base_url = "https://api.anthropic.com"
-    model = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022").strip()
-    if not model:
-        model = "claude-3-5-sonnet-20241022"
+    base_url = (
+        os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com").strip()
+        or "https://api.anthropic.com"
+    )
+    model = (
+        os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022").strip()
+        or "claude-3-5-sonnet-20241022"
+    )
 
     graphql_endpoint = _required_env("GRAPHQL_ENDPOINT")
     working_dir = _required_env("MCP_SERVER_WORKING_DIR")

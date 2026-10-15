@@ -93,7 +93,8 @@ class MCPClient:
 
         Raises:
             TimeoutError if the request exceeds timeout.
-            RuntimeError on an MCP protocol error or tool execution error.
+            RuntimeError on an MCP protocol error, tool execution error, or when
+            the subprocess emits more than 100 consecutive empty lines.
         """
         if not self.is_alive():
             raise RuntimeError("MCP subprocess is not running")
@@ -204,6 +205,7 @@ class MCPClient:
         deadline = time.monotonic() + timeout
         stdout = self.process.stdout
         first_wait = True
+        empty_line_count = 0
         while True:
             if first_wait:
                 wait = timeout
@@ -219,7 +221,13 @@ class MCPClient:
             if line == "":
                 raise RuntimeError("MCP subprocess closed stdout unexpectedly")
             if not line.strip():
+                empty_line_count += 1
+                if empty_line_count > 100:
+                    raise RuntimeError(
+                        "MCP subprocess emitted >100 consecutive empty lines (possible keepalive loop)"
+                    )
                 continue
+            empty_line_count = 0
             try:
                 message = json.loads(line)
             except json.JSONDecodeError as exc:

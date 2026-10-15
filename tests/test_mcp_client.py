@@ -103,7 +103,7 @@ def test_shutdown_graceful(mcp_factory):
     assert client.is_alive() is False
 
 
-def test_call_tool_timeout(mcp_factory, monkeypatch):
+def test_call_tool_timeout_and_empty_lines(mcp_factory, monkeypatch):
     client = mcp_factory(_success_script())
     client.start()
 
@@ -113,6 +113,7 @@ def test_call_tool_timeout(mcp_factory, monkeypatch):
         timeouts.append(timeout)
         return [], [], []
 
+    real_select = select.select
     monkeypatch.setattr(select, "select", not_ready)
 
     with pytest.raises(TimeoutError) as exc_info:
@@ -120,6 +121,16 @@ def test_call_tool_timeout(mcp_factory, monkeypatch):
 
     assert str(exc_info.value) == "MCP tool call 'get_employee_by_id' timed out after 10s"
     assert timeouts == [10]
+
+    monkeypatch.setattr(select, "select", real_select)
+    blank_client = mcp_factory(_blank_lines_script())
+    blank_client.start()
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"MCP subprocess emitted >100 consecutive empty lines",
+    ):
+        blank_client.call_tool("get_employee_by_id", {"id": "EMP-001"}, timeout=10)
 
 
 def _success_script() -> str:
@@ -156,6 +167,46 @@ def _success_script() -> str:
             "result": {{"tools": TOOLS}},
         }})
         sys.stdin.read()
+        """
+    )
+
+
+def _blank_lines_script() -> str:
+    tools = json.dumps(FOUR_TOOLS)
+    return textwrap.dedent(
+        f"""
+        import json
+        import sys
+
+        TOOLS = json.loads({tools!r})
+
+        def read_request():
+            line = sys.stdin.readline()
+            if not line:
+                return None
+            return json.loads(line)
+
+        def write(message):
+            sys.stdout.write(json.dumps(message) + "\\n")
+            sys.stdout.flush()
+
+        request = read_request()
+        write({{
+            "jsonrpc": "2.0",
+            "id": request["id"],
+            "result": {{"protocolVersion": "2024-11-05", "capabilities": {{}}}},
+        }})
+        request = read_request()
+        while request is not None and request.get("method") == "notifications/initialized":
+            request = read_request()
+        write({{
+            "jsonrpc": "2.0",
+            "id": request["id"],
+            "result": {{"tools": TOOLS}},
+        }})
+        request = read_request()
+        sys.stdout.write("\\n" * 101)
+        sys.stdout.flush()
         """
     )
 

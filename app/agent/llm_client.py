@@ -37,7 +37,8 @@ class LLMClient:
                 {"type": "tool_use", "calls": [{"id": "<id>", "name": "<name>", "input": {...}}, ...]}
 
         Raises:
-            Exception on API errors (network, auth, rate limit).
+            RuntimeError on API errors (network, auth, rate limit) or when the
+            response contains no text and no tool calls.
         """
         system, chat_messages = _convert_messages(messages)
         request: dict[str, Any] = {
@@ -119,9 +120,10 @@ def _parse_response(response: Any) -> dict:
 
     if calls:
         return {"type": "tool_use", "calls": calls}
-    if texts:
-        return {"type": "text", "content": "".join(texts)}
-    raise RuntimeError("LLM response did not include text or tool calls")
+    content_text = "".join(texts)
+    if not content_text.strip():
+        raise RuntimeError("LLM response contained no text or tool calls")
+    return {"type": "text", "content": content_text}
 
 
 def _block_value(block: Any, key: str) -> Any:

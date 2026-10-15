@@ -32,14 +32,22 @@ def test_query_endpoint_malformed_json():
     orchestrator.handle_query.assert_not_called()
 
 
-def test_query_endpoint_missing_query_field():
+def test_query_endpoint_missing_or_empty_query():
     orchestrator = _orchestrator("unused")
     client = _app(orchestrator).test_client()
 
-    response = client.post("/query", json={})
+    missing = client.post("/query", json={})
+    assert missing.status_code == 400
+    assert missing.get_json() == {"error": "missing 'query' field"}
 
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "missing 'query' field"}
+    empty = client.post("/query", json={"query": ""})
+    assert empty.status_code == 400
+    assert empty.get_json() == {"error": "query cannot be empty"}
+
+    blank = client.post("/query", json={"query": "   "})
+    assert blank.status_code == 400
+    assert blank.get_json() == {"error": "query cannot be empty"}
+
     orchestrator.handle_query.assert_not_called()
 
 

@@ -33,8 +33,8 @@ Employee and sales-order `id` arguments are uppercased before the tool call (`em
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | — | Anthropic API key for the LLM client |
-| `ANTHROPIC_BASE_URL` | No | `https://api.anthropic.com` | Anthropic API base URL (override for a gateway) |
-| `ANTHROPIC_MODEL` | No | `claude-3-5-sonnet-20241022` | Model passed to the Messages API |
+| `ANTHROPIC_BASE_URL` | No | `https://api.anthropic.com` | Anthropic API base URL (override for a gateway); empty is treated as unset |
+| `ANTHROPIC_MODEL` | No | `claude-3-5-sonnet-20241022` | Model passed to the Messages API; empty is treated as unset |
 | `GRAPHQL_ENDPOINT` | Yes | — | GraphQL service URL passed to the MCP subprocess (for example `http://localhost:4000/graphql`) |
 | `MCP_SERVER_COMMAND` | No | `python -m mcp.server` | Command used to start the MCP server |
 | `MCP_SERVER_WORKING_DIR` | Yes | — | Working directory for the MCP subprocess (PER-6 repo path) |

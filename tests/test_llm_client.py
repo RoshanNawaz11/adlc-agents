@@ -8,7 +8,7 @@ import pytest
 from app.agent.llm_client import LLMClient
 
 
-def test_infer_direct_answer(monkeypatch):
+def test_infer_direct_answer_and_empty_validation(monkeypatch):
     messages_api = MagicMock()
     messages_api.create.return_value = SimpleNamespace(
         content=[SimpleNamespace(type="text", text="Hello!")]
@@ -28,6 +28,15 @@ def test_infer_direct_answer(monkeypatch):
     assert kwargs["system"] == "You are helpful."
     assert kwargs["messages"] == [{"role": "user", "content": "hello"}]
     assert "tools" not in kwargs
+
+    messages_api.create.return_value = SimpleNamespace(
+        content=[
+            SimpleNamespace(type="text", text=""),
+            SimpleNamespace(type="text", text=""),
+        ]
+    )
+    with pytest.raises(RuntimeError, match="LLM response contained no text or tool calls"):
+        client.infer([{"role": "user", "content": "hello"}])
 
 
 def test_infer_tool_call(monkeypatch):
